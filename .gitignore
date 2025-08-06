@@ -1,0 +1,47 @@
+# Python
+*.pyc
+*.pyo
+__pycache__/
+
+# Fichiers HTML temporaires de debug
+debug_page.html
+utils/debug_page.html
+
+# Environnement virtuel
+venv/
+.env
+
+# Fichiers liés à l'IDE
+.vscode/
+
+# Fichiers de log
+*.log
+
+# Fichiers générés par Streamlit
+/.streamlit/
+
+# Fichiers temporaires de la base de données
+*.db
+*.sqlite
+
+# Fichiers de données temporaires ou produits
+*.csv
+*.tsv
+*.xlsx
+*.jpg
+*.txt
+*.docx
+*.pdf
+
+
+# Dossiers générés pour les fichiers téléchargés
+output
+
+
+# Fichiers de tests
+*.cover
+.coverage
+nosetests.xml
+test_*.xml
+*.bak
+*.swp
