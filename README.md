@@ -17,6 +17,8 @@ ocr_comparator/
 ├── requirements_Sauvegarde.txt # Liste complète des dépendances
 └── README.md
 
+
+  
 --- 
 ## Objectif
 
