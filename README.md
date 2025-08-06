@@ -17,6 +17,7 @@ ocr_comparator/
 ├── requirements_Sauvegarde.txt # Liste complète des dépendances
 └── README.md
 
+--- 
 ## Objectif
 
 L'outil automatise :
@@ -27,7 +28,7 @@ L'outil automatise :
 - La **génération d’un rapport Excel** avec les résultats par moteur et par page.
 - La **visualisation** des performances (F1-score).
   
-
+---
 ## Installation & Prérequis
 
 ### 1. Création d’un environnement virtuel
@@ -36,14 +37,14 @@ L'outil automatise :
 python -m venv venv
 source venv/bin/activate  # ou `venv\\Scripts\\activate` sous Windows
 
-```markdown
+--- 
 ### 2. Installation des dépendances
 Ce projet repose sur les bibliothèques suivantes :
 pip install pytesseract easyocr paddleocr pdf2image pandas nltk matplotlib seaborn fuzzywuzzy python-Levenshtein openpyxl editdistance numpy opencv-python
 
 ```bash
 pip install -r requirements_Sauvegarde.txt
-```markdown
+ ---
 
 ## 3. Installation de Tesseract OCR
 
@@ -54,7 +55,7 @@ pip install -r requirements_Sauvegarde.txt
 ```bash
     pytesseract.pytesseract.tesseract_cmd = r"C:\\Program Files\\Tesseract-OCR\\tesseract.exe"
 
-```markdown
+--- 
 ## 4. Installation de Poppler (pour pdf2image)
 
 Téléchargez les binaires : https://github.com/oschwartz10612/poppler-windows/releases/
