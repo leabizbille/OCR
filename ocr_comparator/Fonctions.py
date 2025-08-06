@@ -24,23 +24,27 @@ import json
 # --- Gestion des warnings spécifiques ---
 import warnings
 warnings.filterwarnings("ignore", message=".*pin_memory.*")
-# On ignore certains warnings liés à l'utilisation mémoire GPU (utile si GPU activé)
+# On ignore certains warnings liés à l'utilisation mémoire GPU
 
 # --- Téléchargement des ressources NLTK ---
 nltk.download('punkt')
 # On télécharge la ressource 'punkt' pour tokenizer les textes en mots
 
+
+
 # --- Configuration du chemin Tesseract OCR ---
+# Tesseract nécessite d'indiquer où est l'exécutable (Windows ici)
 TESSERACT_PATH = r"C:\Program Files\Tesseract-OCR\tesseract.exe"
 pytesseract.pytesseract.tesseract_cmd = TESSERACT_PATH
-# Tesseract nécessite d'indiquer où est l'exécutable (Windows ici)
 
-# --- Initialisation des moteurs OCR lourds pour éviter de réinitialiser à chaque appel ---
-easyocr_reader = easyocr.Reader(['fr'], gpu=False)
+# --- Initialisation des moteurs OCR pour éviter de réinitialiser à chaque appel ---
 # EasyOCR configuré pour langue française et sans GPU (CPU uniquement)
+easyocr_reader = easyocr.Reader(['fr'], gpu=False)
 
-paddle_ocr = PaddleOCR(use_textline_orientation=True, lang='fr')
 # PaddleOCR initialisé avec orientation automatique du texte et français
+paddle_ocr = PaddleOCR(use_textline_orientation=True, lang='fr')
+
+
 
 # === Définition des fonctions ===
 def ocr_with_pytesseract(image):
@@ -104,8 +108,8 @@ def extract_ocr_texts(image):
     Renvoie un dict avec clé = moteur OCR, valeur = texte reconnu.
     """
     texts = {}
-    texts['Pytesseract'] = ocr_with_pytesseract(image)  # Tesseract
-    texts['EasyOCR'] = ocr_with_easyocr(image)          # EasyOCR
+    #texts['Pytesseract'] = ocr_with_pytesseract(image)  # Tesseract
+    #texts['EasyOCR'] = ocr_with_easyocr(image)          # EasyOCR
     texts['PaddleOCR'] = ocr_with_paddleocr(image) or ""
     return texts
 
@@ -207,24 +211,31 @@ def plot_metrics_from_excel(file):
     plt.title("F1-score par moteur OCR (normalisé vs brut)")
     plt.show()
 
+
 def load_ground_truth_text(file_path):
-    with open(file_path, 'r', encoding='utf-8') as file:
-        try:
+    # Ajouter automatiquement le dossier si necessaire
+    if not os.path.isabs(file_path) and not os.path.exists(file_path):
+        file_path = os.path.join("data", file_path)
+
+    if not os.path.exists(file_path):
+        raise FileNotFoundError(f"❌ Fichier introuvable : {file_path}")
+
+    # Essai de lecture avec UTF-8
+    try:
+        with open(file_path, 'r', encoding='utf-8') as file:
             return file.read().strip()
-        except UnicodeDecodeError:
-            print(f"⚠️ Encodage UTF-8 échoué pour {file_path}, tentative en 'latin-1'")
-    # Retenter avec un autre encodage
-    with open(file_path, 'r', encoding='latin-1') as file:
-        return file.read().strip()
+    except UnicodeDecodeError:
+        print(f"⚠️ Encodage UTF-8 échoué pour {file_path}, tentative en 'latin-1'")
 
-def pdf_to_images(pdf_path):
-    """
-    Convertit un fichier PDF en une liste d'images (une image par page).
-    Utilise la fonction convert_from_path de pdf2image.
-    """
-    return convert_from_path(pdf_path)
+    # Retenter avec 'latin-1'
+    try:
+        with open(file_path, 'r', encoding='latin-1') as file:
+            return file.read().strip()
+    except Exception as e:
+        raise RuntimeError(f"❌ Échec de lecture du fichier {file_path} avec 'latin-1' : {e}")
 
-def batch_process(files_list, output_excel='combined_ocr_results.xlsx'):
+
+def batch_process(files_list, output_excel):
     """
     files_list : liste de tuples (chemin_ground_truth_txt, chemin_pdf)
     Retourne le DataFrame combiné et exporte tout en Excel.
@@ -242,7 +253,29 @@ def batch_process(files_list, output_excel='combined_ocr_results.xlsx'):
     print(f"\nTous les résultats combinés exportés vers : {output_excel}")
     return combined_df
 
-def main(ground_truth_txt_path, pdf_path, output_excel='ocr_metrics_report.xlsx'):
+from pdf2image import convert_from_path
+from PIL import Image
+
+def load_images_from_file(file_path):
+    ext = os.path.splitext(file_path)[1].lower()
+    if ext == '.pdf':
+        # Convertir PDF en liste d'images PIL
+        return convert_from_path(file_path)
+    elif ext in ['.jpg', '.jpeg', '.png', '.bmp', '.tiff']:
+        # Charger directement une image (retourner liste avec 1 élément)
+        return [Image.open(file_path)]
+    else:
+        raise ValueError(f"Format de fichier non supporté : {file_path}")
+
+
+import time
+
+def generate_output_filename(prefix="resultats_ocr_", extension=".xlsx", folder="data"):
+    timestamp = time.strftime("%Y%m%d_%H%M%S")
+    filename = f"{prefix}{timestamp}{extension}"
+    return os.path.join(folder, filename)
+
+def main(ground_truth_txt_path, pdf_path, output_excel):
     """
     Fonction principale exécutant le pipeline complet :
     - Chargement du texte référence
@@ -252,7 +285,7 @@ def main(ground_truth_txt_path, pdf_path, output_excel='ocr_metrics_report.xlsx'
     - Stockage des résultats dans un fichier Excel
     """
     ground_truth = load_ground_truth_text(ground_truth_txt_path)
-    images = pdf_to_images(pdf_path)
+    images = load_images_from_file(pdf_path)
 
     results = []  # Liste pour stocker tous les résultats
 
@@ -299,16 +332,3 @@ def main(ground_truth_txt_path, pdf_path, output_excel='ocr_metrics_report.xlsx'
             plot_metrics_from_excel(output_excel)
     return df
 
-
-# Point d'entrée pour exécuter le script directement
-if __name__ == "__main__":
-    files = [
-    ("Berville_L_CV_IA-avril.txt", "Berville_L_CV_IA-avril.pdf"),
-    ("Exemple_ocr.docx", "Exemple_ocr.pdf"),
-    ("Recommandations et pistes.docx", "Recommandations et pistes.pdf"),
-    ]
-    #GROUND_TRUTH_TXT = "Berville_L_CV_IA-avril.txt"  # Chemin fichier texte référence
-    #PDF_FILE = "Berville_L_CV_IA-avril.pdf"          # Chemin fichier PDF à analyser
-    #main(GROUND_TRUTH_TXT, PDF_FILE)
-    #output_excel = "ocr_metrics_report.xlsx"
-    batch_process(files, output_excel='resultats_ocr_combines.xlsx')
