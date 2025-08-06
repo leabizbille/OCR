@@ -42,7 +42,11 @@ pytesseract.pytesseract.tesseract_cmd = TESSERACT_PATH
 easyocr_reader = easyocr.Reader(['fr'], gpu=False)
 
 # PaddleOCR initialisé avec orientation automatique du texte et français
-paddle_ocr = PaddleOCR(use_textline_orientation=True, lang='fr')
+
+paddle_ocr = PaddleOCR(
+    use_doc_orientation_classify=False,
+    use_doc_unwarping=False,
+    use_textline_orientation=False)
 
 
 

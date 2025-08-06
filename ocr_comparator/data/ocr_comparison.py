@@ -1,11 +1,11 @@
 import os
 import cv2
 import numpy as np
-import pytesseract
-import easyocr
 from pdf2image import convert_from_path
 import pandas as pd
 import nltk
+from PIL import Image
+
 import editdistance
 from nltk.tokenize import word_tokenize
 from fuzzywuzzy import fuzz
@@ -27,45 +27,87 @@ warnings.filterwarnings("ignore", message=".*pin_memory.*")
 
 nltk.download('punkt')
 
-TESSERACT_PATH = r"C:\Program Files\Tesseract-OCR\tesseract.exe"
-pytesseract.pytesseract.tesseract_cmd = TESSERACT_PATH
 
-# Initialisation unique des OCR pour éviter surcharge
-easyocr_reader = easyocr.Reader(['fr'], gpu=False)
 paddle_ocr = PaddleOCR(use_textline_orientation=True, lang='fr')
 
-# ====== Fonctions OCR ======
-def ocr_with_pytesseract(image):
-    # image attendue en RGB, conversion en niveaux de gris
-    gray = cv2.cvtColor(image, cv2.COLOR_RGB2GRAY)
-    return pytesseract.image_to_string(gray).strip()
-
-def ocr_with_easyocr(image):
-    result = easyocr_reader.readtext(image)
-    return " ".join([text[1] for text in result]).strip()
 
 def ocr_with_paddleocr(image):
-    import paddleocr
-    ocr = paddleocr.PaddleOCR(use_textline_orientation=True, lang='fr')
+    ocr = PaddleOCR(use_angle_cls=False, lang='fr')
     result = ocr.predict(image)
-    # PaddleOCR renvoie une liste de pages
-    if len(result) == 0:
-        return []
-    page_result = result[0]
-    texts = []
-    # page_result est une liste de lignes, chaque ligne est une liste où la 2e position (index 1) contient [texte, score]
-    for line in page_result:
-        text = line[1][0]  # texte reconnu
-        texts.append(text)
-    return texts
+
+    if not result:
+        return {
+            'full_text': '',
+            'texts': [],
+            'scores': [],
+            'bboxes': []
+        }
+
+    rec_texts = []
+    rec_scores = []
+    rec_bboxes = []
+
+    for line in result:
+        text = line.get('text', '')
+        score = line.get('score', 0.0)
+        bbox = line.get('box', [])
+
+        rec_texts.append(text)
+        rec_scores.append(score)
+        rec_bboxes.append(bbox)
+
+    full_text = ' '.join(rec_texts)
+
+    return {
+        'full_text': full_text,
+        'texts': rec_texts,
+        'scores': rec_scores,
+        'bboxes': rec_bboxes
+    }
+
+
+
+def extract_ocr_texts(image):
+    # Extraction OCR
+    rec = ocr_with_paddleocr(image)
+    # On peut ici choisir de retourner les textes bruts (concaténés)
+    full_text = " ".join(rec['texts'])
+    # Et éventuellement renvoyer aussi les scores et bboxes dans un dict
+    return {
+        'full_text': full_text,
+        'texts': rec['texts'],
+        'scores': rec['scores'],
+        'bboxes': rec['bboxes']
+    }
+
+
+def pdf_to_images(file_path):
+    print(f"[INFO] Lecture du fichier : {file_path}")
+    ext = os.path.splitext(file_path)[1].lower()
+    print(f"[INFO] Extension du fichier détectée : {ext}")
+
+    if ext == ".pdf":
+        print("[INFO] Fichier reconnu comme PDF, conversion en images...")
+        images = convert_from_path(file_path)
+        print(f"[INFO] {len(images)} page(s) extraite(s) du PDF.")
+        return images
+
+    elif ext in [".jpg", ".jpeg", ".png", ".tiff", ".bmp"]:
+        print("[INFO] Fichier reconnu comme image unique.")
+        img = Image.open(file_path).convert("RGB")
+        print(f"[INFO] Image chargée avec dimensions : {img.size}")
+        return [img]  # on retourne une liste pour rester compatible avec le reste du code
+
+    else:
+        raise ValueError(f"Type de fichier non supporté : {ext}")
 
 def extract_ocr_texts(image):
     # image au format numpy RGB
     texts = {}
-    texts['Pytesseract'] = ocr_with_pytesseract(image)
-    texts['EasyOCR'] = ocr_with_easyocr(image)
     texts['PaddleOCR'] = ocr_with_paddleocr(image)
+    print(texts)
     return texts
+
 import unicodedata
 import re
 
@@ -76,6 +118,7 @@ def normalize_text(text: str) -> str:
     text = text.encode('ascii', 'ignore').decode('utf-8')  # supprime accents
     text = re.sub(r'\s+', ' ', text)  # supprime espaces multiples
     text = re.sub(r'[^\w\s]', '', text)  # supprime ponctuation
+    print(text)
     return text.lower().strip()
 
 
@@ -136,6 +179,7 @@ def compute_metrics(reference: str, predicted: str) -> dict:
     # CRR : Character Recognition Rate
     char_matches = sum(1 for a, b in zip(reference, predicted) if a == b)
     crr = char_matches / max(len(reference), 1)
+    longeur = len(reference)
 
     # CER : Character Error Rate
     cer = edit_distance(reference, predicted) / max(len(reference), 1)
@@ -177,7 +221,8 @@ def compute_metrics(reference: str, predicted: str) -> dict:
         'Precision': round(precision, 3),
         'Recall': round(recall, 3),
         'F1-score': round(f1, 3),
-        'Robustesse': round(robustness, 3)
+        'Robustesse': round(robustness, 3),
+        'longeur' :longeur
     }
 
 
@@ -208,36 +253,38 @@ def load_ground_truth_text(txt_path):
     with open(txt_path, 'r', encoding='utf-8') as file:
         return file.read().strip()
 
-# ====== Conversion PDF -> images ======
-def pdf_to_images(pdf_path):
-    return convert_from_path(pdf_path)
 
 def main(ground_truth_txt_path, pdf_path, output_excel='ocr_metrics_report.xlsx'):
     ground_truth = load_ground_truth_text(ground_truth_txt_path)
     images = pdf_to_images(pdf_path)
 
     results = []
+
     for i, pil_img in enumerate(images):
-        image_rgb = np.array(pil_img)
+        image_rgb = np.array(pil_img.convert("RGB"))  # ✅ PIL → RGB → numpy array
         print(f"\n--- Page {i + 1} ---")
+        ocr_data = extract_ocr_texts(image_rgb)
+        for engine, data in ocr_data.items():
+            full_text = data['full_text']
+            rec_texts = data['texts']
+            rec_scores = data['scores']
+            rec_bboxes = data['bboxes']
 
-        ocr_texts = extract_ocr_texts(image_rgb)
+            metrics_raw = compute_metrics(ground_truth, full_text)
 
-        for engine, ocr_text in ocr_texts.items():
-            # Version brute
-            metrics_raw = compute_metrics(ground_truth, ocr_text)
             results.append({
                 'Page': i + 1,
                 'OCR_engine': engine,
                 'Version': 'brute',
                 **metrics_raw,
-                'OCR_text': ocr_text
+                'OCR_text': full_text
             })
+
             print(f"{engine} (brute) : CRR={metrics_raw['CRR']}, CER={metrics_raw['CER']}, F1={metrics_raw['F1-score']}")
 
-            # Version corrigée (normalisation simple, simule une correction manuelle)
-            corrected_text = normalize_text(ocr_text)  
+            corrected_text = normalize_text(full_text)
             metrics_corr = compute_metrics(ground_truth, corrected_text)
+
             results.append({
                 'Page': i + 1,
                 'OCR_engine': engine,
@@ -245,7 +292,36 @@ def main(ground_truth_txt_path, pdf_path, output_excel='ocr_metrics_report.xlsx'
                 **metrics_corr,
                 'OCR_text': corrected_text
             })
+
             print(f"{engine} (corrigée) : CRR={metrics_corr['CRR']}, CER={metrics_corr['CER']}, F1={metrics_corr['F1-score']}")
+
+        # Version brute (texte complet concaténé)
+        metrics_raw = compute_metrics(ground_truth, full_text)
+        results.append({
+            'Page': i + 1,
+            'OCR_engine': 'PaddleOCR',
+            'Version': 'brute',
+            **metrics_raw,
+            'OCR_text': full_text
+        })
+        print(f"PaddleOCR (brute) : CRR={metrics_raw['CRR']}, CER={metrics_raw['CER']}, F1={metrics_raw['F1-score']}")
+
+        # Version corrigée (normalisation simple)
+        corrected_text = normalize_text(full_text)
+        metrics_corr = compute_metrics(ground_truth, corrected_text)
+        results.append({
+            'Page': i + 1,
+            'OCR_engine': 'PaddleOCR',
+            'Version': 'corrigée',
+            **metrics_corr,
+            'OCR_text': corrected_text
+        })
+        print(f"PaddleOCR (corrigée) : CRR={metrics_corr['CRR']}, CER={metrics_corr['CER']}, F1={metrics_corr['F1-score']}")
+
+        # Optionnel : Tu peux aussi sauvegarder les segments + scores
+        # Exemple pour inspection/debug :
+        # for t, s in zip(rec_texts, rec_scores):
+        #     print(f"Texte: {t} - Score: {s:.3f}")
 
     df = pd.DataFrame(results)
     df.to_excel(output_excel, index=False)
@@ -254,7 +330,9 @@ def main(ground_truth_txt_path, pdf_path, output_excel='ocr_metrics_report.xlsx'
     # Générer les graphiques
     plot_ocr_metrics(df)
 
+
 if __name__ == "__main__":
     GROUND_TRUTH_TXT = "Berville_L_CV_IA-avril.txt"
-    PDF_FILE = "Berville_L_CV_IA-avril.pdf"
+    PDF_FILE = "Berville_L_CV_IA-avril.jpg"
+
     main(GROUND_TRUTH_TXT, PDF_FILE)
