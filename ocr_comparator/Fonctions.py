@@ -216,6 +216,7 @@ def load_ground_truth_text(file_path):
     # Ajouter automatiquement le dossier si necessaire
     if not os.path.isabs(file_path) and not os.path.exists(file_path):
         file_path = os.path.join("data", file_path)
+       #file_path = os.path.join(GROUND_TRUTH_DIR, file.filename)
 
     if not os.path.exists(file_path):
         raise FileNotFoundError(f"❌ Fichier introuvable : {file_path}")
@@ -332,3 +333,47 @@ def main(ground_truth_txt_path, pdf_path, output_excel):
             plot_metrics_from_excel(output_excel)
     return df
 
+
+# Main pour l api
+def main_return_texts(ground_truth_txt_path, pdf_path):
+    """
+    Exécute le pipeline OCR et renvoie les résultats sous forme de DataFrame
+    (sans export Excel ni affichage graphique).
+    """
+    ground_truth = load_ground_truth_text(ground_truth_txt_path)
+    images = load_images_from_file(pdf_path)
+
+    results = []
+
+    for i, pil_img in enumerate(images):
+        image_rgb = np.array(pil_img)
+        print(f"\n--- Page {i + 1} ---")
+
+        ocr_texts = extract_ocr_texts(image_rgb)
+
+        for engine, ocr_text in ocr_texts.items():
+            metrics_raw = compute_metrics(ground_truth, ocr_text)
+            print(f"{engine} [BRUT] : CRR={metrics_raw['CRR']}, CER={metrics_raw['CER']}, F1={metrics_raw['F1-score']}")
+
+            results.append({
+                'Page': i + 1,
+                'OCR_engine': engine,
+                'Normalized': False,
+                **metrics_raw,
+                'OCR_text': ocr_text
+            })
+
+            normalized_gt = normalize_text(ground_truth)
+            normalized_pred = normalize_text(ocr_text)
+            metrics_norm = compute_metrics(normalized_gt, normalized_pred)
+            print(f"{engine} [NORMALISE] : CRR={metrics_norm['CRR']}, CER={metrics_norm['CER']}, F1={metrics_norm['F1-score']}")
+
+            results.append({
+                'Page': i + 1,
+                'OCR_engine': engine,
+                'Normalized': True,
+                **metrics_norm,
+                'OCR_text': normalized_pred
+            })
+
+    return pd.DataFrame(results)
