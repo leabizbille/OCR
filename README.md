@@ -26,7 +26,7 @@ L'outil automatise :
 - Le calcul de **métriques d’évaluation textuelles** (brutes et normalisées).
 - La **génération d’un rapport Excel** avec les résultats par moteur et par page.
 - La **visualisation** des performances (F1-score).
-- 
+  
 
 ## Installation & Prérequis
 
@@ -36,30 +36,29 @@ L'outil automatise :
 python -m venv venv
 source venv/bin/activate  # ou `venv\\Scripts\\activate` sous Windows
 
-
+```markdown
 ### 2. Installation des dépendances
 Ce projet repose sur les bibliothèques suivantes :
 pip install pytesseract easyocr paddleocr pdf2image pandas nltk matplotlib seaborn fuzzywuzzy python-Levenshtein openpyxl editdistance numpy opencv-python
 
 ```bash
 pip install -r requirements_Sauvegarde.txt
-
+```markdown
 
 ## 3. Installation de Tesseract OCR
 
     Télécharger et installer : Tesseract pour Windows (UB Mannheim)
+    Par défaut, le chemin est : C:\\Program Files\\Tesseract-OCR
 
-    Par défaut, le chemin est :
-    C:\\Program Files\\Tesseract-OCR
 
+```bash
     pytesseract.pytesseract.tesseract_cmd = r"C:\\Program Files\\Tesseract-OCR\\tesseract.exe"
 
+```markdown
 ## 4. Installation de Poppler (pour pdf2image)
 
-    Téléchargez les binaires :
-    https://github.com/oschwartz10612/poppler-windows/releases/
-
-    Ajouter le dossier poppler/bin au PATH système (important pour Windows)
+Téléchargez les binaires : https://github.com/oschwartz10612/poppler-windows/releases/
+Ajouter le dossier poppler/bin au PATH système (important pour Windows)
 
 ## ⚙️ Fonctionnalités principales
 
@@ -70,22 +69,23 @@ pip install -r requirements_Sauvegarde.txt
 - 📈 Visualisation des F1-scores via `matplotlib`/`seaborn`.
 
 ---
-
+```markdown
 ## Ground Truth (texte de référence)
 
     Soit au format .txt un fichier par PDF
 
     Soit un fichier ground_truths.json de type :
-
+    
+```bash
 {
   "sample1.pdf": "Texte attendu pour sample1...",
   "sample2.pdf": "Texte attendu pour sample2..."
 }
-
+```markdown
 ## Script principal
-
+```bash
 python ocr_comparison.py
-
+```markdown
 Ce script :
 
     Charge le texte de référence
@@ -101,7 +101,8 @@ Ce script :
     Génère une visualisation comparative
 
 Exemple de configuration dans le script
-
+```markdown
+```bash
 files = [
     ("data/sample1.txt", "data/sample1.pdf"),
     ("data/sample2.txt", "data/sample2.pdf"),
