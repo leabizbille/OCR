@@ -9,7 +9,7 @@ import Levenshtein
 import pandas as pd
 
 
-img_path = r"C:\Users\Lau\Documents\Moi\1-Travail (sept 23)\3- IA\1- Formation Greta\3- Projets\15- OCR\ocr_comparator\data\Berville_L_CV_IA-avril.jpg"
+img_path = r"C:\Users\Lau\Documents\Moi\1-Travail (sept 23)\3- IA\1- Formation Greta\3- Projets\15- OCR\ocr_comparator\Original\Exemple_ocr.jpg"
 
 # Initialize PaddleOCR instance
 ocr = PaddleOCR(
@@ -44,7 +44,7 @@ df_ocr = pd.DataFrame({
 full_text = " ".join(df_ocr['text'].astype(str))
 
 # === 2. Charger le texte ground truth ===
-with open("Berville_L_CV_IA-avril.txt", encoding="utf-8") as f:
+with open("Exemple_ocr.docx", encoding="utf-8") as f:
     ground_truth = f.read()
 # === 3. Nettoyage simple (optionnel mais recommandé) ===
 def normalize_text(text):

@@ -112,3 +112,5 @@ files = [
 ]
 batch_process(files, output_excel='results/ocr_comparison_results.xlsx')
 
+## Dans le terminal
+wget https://paddleocr.bj.bcebos.com/ppstructure/models/layout/picodet_lcnet_x1_0_fgd_layout_cdla.pdparams
