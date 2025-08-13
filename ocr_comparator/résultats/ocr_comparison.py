@@ -13,7 +13,7 @@ from paddleocr import PaddleOCR
 import matplotlib.pyplot as plt
 import seaborn as sns
 import editdistance
-from paddleocr import PaddleOCR
+
 from nltk.translate.bleu_score import sentence_bleu, SmoothingFunction
 import unicodedata
 import re
@@ -32,40 +32,51 @@ paddle_ocr = PaddleOCR(use_textline_orientation=True, lang='fr')
 
 
 def ocr_with_paddleocr(image):
+    # Étape 1 : Initialisation de PaddleOCR
     ocr = PaddleOCR(use_angle_cls=False, lang='fr')
-    result = ocr.predict(image)
+    # use_angle_cls=False : on ne fait pas de détection de rotation du texte
+    # lang='fr' : OCR configuré pour reconnaître du texte en français
 
+    # Étape 2 : Exécution de l'OCR sur l'image
+    result = ocr.predict(image)
+    # `result` contient généralement une liste de dictionnaires, chacun représentant
+    # une ligne de texte avec ses informations : texte, score de confiance, bbox.
+
+    # Étape 3 : Gestion du cas où aucun texte n’est détecté
     if not result:
         return {
-            'full_text': '',
-            'texts': [],
-            'scores': [],
-            'bboxes': []
+            'full_text': '',  # Texte concaténé vide
+            'texts': [],      # Liste vide
+            'scores': [],     # Liste vide
+            'bboxes': []      # Liste vide
         }
 
+    # Étape 4 : Préparer les listes pour stocker textes, scores et positions
     rec_texts = []
     rec_scores = []
     rec_bboxes = []
 
+    # Étape 5 : Parcourir chaque ligne détectée
     for line in result:
-        text = line.get('text', '')
-        score = line.get('score', 0.0)
-        bbox = line.get('box', [])
+        text = line.get('text', '')    # Texte reconnu
+        score = line.get('score', 0.0) # Score de confiance
+        bbox = line.get('box', [])     # Boîte englobante (x,y,width,height)
 
+        # On ajoute chaque élément à sa liste respective
         rec_texts.append(text)
         rec_scores.append(score)
         rec_bboxes.append(bbox)
 
+    # Étape 6 : Concaténation de tous les textes en un paragraphe complet
     full_text = ' '.join(rec_texts)
 
+    # Étape 7 : Retourner un dictionnaire complet
     return {
-        'full_text': full_text,
-        'texts': rec_texts,
-        'scores': rec_scores,
-        'bboxes': rec_bboxes
+        'full_text': full_text,  # Texte complet
+        'texts': rec_texts,      # Liste de textes individuels
+        'scores': rec_scores,    # Liste de scores de confiance
+        'bboxes': rec_bboxes     # Liste de boîtes englobantes
     }
-
-
 
 def extract_ocr_texts(image):
     # Extraction OCR
