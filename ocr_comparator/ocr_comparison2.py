@@ -24,13 +24,11 @@ from Fonctions import (
     TESSERACT_PATH,
 # OCR Readers
     easyocr_reader,
-    paddle_ocr,
 # OCR Wrappers
     ocr_with_pytesseract,
     ocr_with_easyocr,
     ocr_with_paddleocr,
     # Extraction & Traitement
-    extract_text_from_paddleocr_json,
     extract_ocr_texts,
     normalize_text,
 # Ground Truth & PDF
@@ -58,8 +56,8 @@ pytesseract.pytesseract.tesseract_cmd = TESSERACT_PATH
 # Point d'entrée pour exécuter le script directement
 if __name__ == "__main__":
     files = [
-        ("GROUND_TRUTH/Berville_L_CV_IA-avril.txt", "Original/Berville_L_CV_IA-avril.jpg"),
-        #("GROUND_TRUTH/Exemple_ocr.docx", "Original/Exemple_ocr."),
+        ("GROUND_TRUTH/Berville_L_CV_IA-avril.txt", "Original/Berville_L_CV_IA-avril.jpg")#,
+        #("GROUND_TRUTH/Exemple_ocr.docx", "Original/Exemple_ocr.jpg"),
         #("GROUND_TRUTH/Recommandations et pistes.docx", "Original/Recommandations et pistes image.pdf"),
     ]
     output_file = generate_output_filename()

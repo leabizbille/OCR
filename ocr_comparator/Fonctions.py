@@ -7,7 +7,6 @@ import easyocr            # EasyOCR : autre librairie OCR, plus moderne et deep 
 from pdf2image import convert_from_path  # Convertit PDF en images (PIL)
 import pandas as pd       # Gestion et analyse des données en DataFrame
 import nltk               # Librairie NLP, notamment pour tokenizer (découper texte)
-import editdistance       # Calcul distance d'édition (Levenshtein) entre deux séquences
 from nltk.tokenize import word_tokenize  # Tokenisation en mots (NLTK)
 from fuzzywuzzy import fuzz              # Calcul similarité "floue" entre chaînes (Levenshtein)
 from paddleocr import PaddleOCR          # PaddleOCR : OCR basé sur deep learning (plus récent)
@@ -18,8 +17,9 @@ import unicodedata       # Pour normaliser/transformer les caractères (ex : sup
 import re                # Expressions régulières (traitement texte)
 from nltk.metrics.distance import edit_distance  # Calcul distance d'édition Levenshtein
 import uuid
-import json
-
+from pdf2image import convert_from_path
+from PIL import Image
+import time
 
 # --- Gestion des warnings spécifiques ---
 import warnings
@@ -30,8 +30,6 @@ warnings.filterwarnings("ignore", message=".*pin_memory.*")
 nltk.download('punkt')
 # On télécharge la ressource 'punkt' pour tokenizer les textes en mots
 
-
-
 # --- Configuration du chemin Tesseract OCR ---
 # Tesseract nécessite d'indiquer où est l'exécutable (Windows ici)
 TESSERACT_PATH = r"C:\Program Files\Tesseract-OCR\tesseract.exe"
@@ -40,15 +38,6 @@ pytesseract.pytesseract.tesseract_cmd = TESSERACT_PATH
 # --- Initialisation des moteurs OCR pour éviter de réinitialiser à chaque appel ---
 # EasyOCR configuré pour langue française et sans GPU (CPU uniquement)
 easyocr_reader = easyocr.Reader(['fr'], gpu=False)
-
-# PaddleOCR initialisé avec orientation automatique du texte et français
-
-paddle_ocr = PaddleOCR(
-    use_doc_orientation_classify=False,
-    use_doc_unwarping=False,
-    use_textline_orientation=False)
-
-
 
 # === Définition des fonctions ===
 def ocr_with_pytesseract(image):
@@ -60,15 +49,32 @@ def ocr_with_pytesseract(image):
     gray = cv2.cvtColor(image, cv2.COLOR_RGB2GRAY)  # Conversion RGB -> gris
     return pytesseract.image_to_string(gray).strip()  # OCR puis nettoyage espaces
 
-def extract_text_from_paddleocr_json(json_path):
+def ocr_with_paddleocr(image_path_or_array):
     """
-    Lit un fichier JSON généré par PaddleOCR et retourne le texte concaténé.
+    Extrait le texte d'une image via PaddleOCR et renvoie un paragraphe concatené.
+
+    Args:
+        image_path_or_array (str ou numpy.ndarray): chemin vers l'image ou image déjà chargée (BGR).
+
+    Returns:
+        str: texte extrait sous forme de paragraphe.
     """
-    with open(json_path, "r", encoding="utf-8") as f:
-        data = json.load(f)
-    
-    rec_texts = data.get("rec_texts", [])
-    return " ".join(rec_texts).strip()
+    ocr = PaddleOCR(lang='fr', use_textline_orientation=False)
+
+    # Chargement de l'image si un chemin est donné
+    if isinstance(image_path_or_array, str):
+        image = cv2.imread(image_path_or_array)
+        if image is None:
+            raise ValueError(f"Impossible de lire l'image au chemin : {image_path_or_array}")
+    else:
+        image = image_path_or_array
+
+    result = ocr.predict(image)
+    data = result[0]
+    texts = data['rec_texts']
+
+    texte_paragraphe = " ".join(texts)
+    return texte_paragraphe
 
 def ocr_with_easyocr(image):
     """
@@ -78,42 +84,15 @@ def ocr_with_easyocr(image):
     result = easyocr_reader.readtext(image)  # Reconnaissance texte EasyOCR
     # result = liste de tuples (box, texte, confiance)
     return " ".join([text[1] for text in result]).strip()
-
-def ocr_with_paddleocr(image_path, output_dir="output"):
-    """
-    Lance PaddleOCR et retourne le texte extrait (brut), basé sur les rec_texts du JSON.
-    """
-    ocr = PaddleOCR(
-        use_doc_orientation_classify=False,
-        use_doc_unwarping=False,
-        use_textline_orientation=False
-    )
-
-    result = ocr.predict(image_path)
-
-    # Création d'un identifiant de fichier unique
-    file_id = str(uuid.uuid4())
-    json_path = os.path.join(output_dir, f"{file_id}.json")
-
-    # Sauvegarde du JSON
-    for res in result:
-        res.save_to_json(json_path)
-
-    # Extraction depuis le fichier JSON
-    with open(json_path, "r", encoding="utf-8") as f:
-        data = json.load(f)
-        rec_texts = data.get("rec_texts", [])
-
-    return " ".join(rec_texts).strip()
-   
+ 
 def extract_ocr_texts(image):
     """
     Applique les 3 OCR sur la même image.
     Renvoie un dict avec clé = moteur OCR, valeur = texte reconnu.
     """
     texts = {}
-    #texts['Pytesseract'] = ocr_with_pytesseract(image)  # Tesseract
-    #texts['EasyOCR'] = ocr_with_easyocr(image)          # EasyOCR
+    texts['Pytesseract'] = ocr_with_pytesseract(image)  # Tesseract
+    texts['EasyOCR'] = ocr_with_easyocr(image)          # EasyOCR
     texts['PaddleOCR'] = ocr_with_paddleocr(image) or ""
     return texts
 
@@ -215,32 +194,45 @@ def plot_metrics_from_excel(file):
     plt.title("F1-score par moteur OCR (normalisé vs brut)")
     plt.show()
 
+import os
+from docx import Document
 
 def load_ground_truth_text(file_path):
-    # Ajouter automatiquement le dossier si necessaire
+    # Ajouter automatiquement le dossier si nécessaire
     if not os.path.isabs(file_path) and not os.path.exists(file_path):
-        file_path = os.path.join("data", file_path)
-       #file_path = os.path.join(GROUND_TRUTH_DIR, file.filename)
+        file_path = os.path.join("résultats", file_path)
 
     if not os.path.exists(file_path):
         raise FileNotFoundError(f"❌ Fichier introuvable : {file_path}")
 
-    # Essai de lecture avec UTF-8
-    try:
-        with open(file_path, 'r', encoding='utf-8') as file:
-            return file.read().strip()
-    except UnicodeDecodeError:
-        print(f"⚠️ Encodage UTF-8 échoué pour {file_path}, tentative en 'latin-1'")
+    ext = os.path.splitext(file_path)[1].lower()
 
-    # Retenter avec 'latin-1'
-    try:
-        with open(file_path, 'r', encoding='latin-1') as file:
-            return file.read().strip()
-    except Exception as e:
-        raise RuntimeError(f"❌ Échec de lecture du fichier {file_path} avec 'latin-1' : {e}")
+    if ext == '.docx':
+        # Lecture avec python-docx
+        try:
+            doc = Document(file_path)
+            full_text = []
+            for para in doc.paragraphs:
+                full_text.append(para.text)
+            return "\n".join(full_text).strip()
+        except Exception as e:
+            raise RuntimeError(f"❌ Échec de lecture du fichier DOCX {file_path} : {e}")
+
+    else:
+        # Lecture classique pour fichiers texte
+        try:
+            with open(file_path, 'r', encoding='utf-8') as file:
+                return file.read().strip()
+        except UnicodeDecodeError:
+            print(f"⚠️ Encodage UTF-8 échoué pour {file_path}, tentative en 'latin-1'")
+            try:
+                with open(file_path, 'r', encoding='latin-1') as file:
+                    return file.read().strip()
+            except Exception as e:
+                raise RuntimeError(f"❌ Échec de lecture du fichier {file_path} avec 'latin-1' : {e}")
 
 
-def batch_process(files_list, output_excel):
+def batch_process(files_list, output_excel=None):
     """
     files_list : liste de tuples (chemin_ground_truth_txt, chemin_pdf)
     Retourne le DataFrame combiné et exporte tout en Excel.
@@ -252,14 +244,16 @@ def batch_process(files_list, output_excel):
         df['Source_GT'] = os.path.basename(gt_path)     # Pour tracer la source plus tard
         df['Source_PDF'] = os.path.basename(pdf_path)
         all_results.append(df)
-
+    
+    if output_excel is None:
+        output_excel = generate_output_filename()  # <-- indentation corrigée
+    
+    os.makedirs(os.path.dirname(output_excel), exist_ok=True)
     combined_df = pd.concat(all_results, ignore_index=True)
     combined_df.to_excel(output_excel, index=False)
     print(f"\nTous les résultats combinés exportés vers : {output_excel}")
     return combined_df
 
-from pdf2image import convert_from_path
-from PIL import Image
 
 def load_images_from_file(file_path):
     ext = os.path.splitext(file_path)[1].lower()
@@ -272,8 +266,6 @@ def load_images_from_file(file_path):
     else:
         raise ValueError(f"Format de fichier non supporté : {file_path}")
 
-
-import time
 
 def generate_output_filename(prefix="resultats_ocr_", extension=".xlsx", folder="data"):
     timestamp = time.strftime("%Y%m%d_%H%M%S")

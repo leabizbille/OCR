@@ -12,13 +12,20 @@ from Fonctions import (
 app = FastAPI(
     title="OCR Processing API",
     description="API pour traiter et comparer des fichiers OCR avec des fichiers ground truth.",
-    version="1.0.0"
+    version="2.0.0"
 )
 
-GROUND_TRUTH_DIR = "uploads/GROUND_TRUTH"
-ORIGINAL_DIR = "uploads/Original"
+GROUND_TRUTH_DIR = "GROUND_TRUTH"
+ORIGINAL_DIR = "Original"
 os.makedirs(GROUND_TRUTH_DIR, exist_ok=True)
 os.makedirs(ORIGINAL_DIR, exist_ok=True)
+
+@app.get("/")
+def read_root():
+    return {
+        "message": "Bienvenue sur mon API OCR",
+        "documentation": "http://127.0.0.1:8000/docs"
+    }
 
 @app.post("/process/", summary="Extraire le texte OCR",
           description="Extrait le texte OCR à partir de fichiers PDF et les compare à des fichiers ground truth (texte brut).")
