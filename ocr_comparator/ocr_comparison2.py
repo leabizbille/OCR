@@ -19,7 +19,7 @@ import re                # Expressions régulières (traitement texte)
 from nltk.metrics.distance import edit_distance  # Calcul distance d'édition Levenshtein
 import uuid
 import json
-from Fonctions import (
+from ocr_comparator.Fonctions import (
 # Configuration / Chemins
     TESSERACT_PATH,
 # OCR Readers
