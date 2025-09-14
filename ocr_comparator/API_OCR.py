@@ -3,7 +3,7 @@ from typing import List
 import os
 import numpy as np
 import shutil
-from ocr_comparator.Fonctions import (
+from Fonctions import (
     batch_process,
     generate_output_filename,
     main_return_texts
