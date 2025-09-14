@@ -1,6 +1,9 @@
 
 # 🔎 OCR Benchmark Tool: Évaluation Multimoteur (Tesseract, EasyOCR, PaddleOCR)
 
+# venv\Scripts\activate
+# cd ocr_comparator
+# python API_OCR.py
 Ce projet Python permet de comparer automatiquement plusieurs moteurs de reconnaissance optique de caractères (OCR) sur des documents PDF, en évaluant leurs performances via différentes métriques (CRR, CER, WER, F1-score, etc.), avant et après normalisation du texte.
 
 ## 📂 Arborescence du projet
@@ -69,7 +72,7 @@ Ajouter le dossier poppler/bin au PATH système (important pour Windows)
 - 📊 Comparaison automatique de textes OCR à une **vérité terrain** (`ground truth`).
 - 📁 Traitement en **batch** de plusieurs fichiers PDF + `.txt`.
 - 🧪 Évaluation via : CRR, CER, WRR, WER, Fuzzy Score, BLEU, Precision, Recall, F1-score.
-- 📈 Visualisation des F1-scores via `matplotlib`/`seaborn`.
+
 
 ---
 ```markdown
