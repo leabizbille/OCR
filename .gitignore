@@ -1,0 +1,53 @@
+# ==========================
+# Python
+# ==========================
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Environnements virtuels
+venv/
+myenv/
+env/
+.env/
+
+# Fichiers de logs
+*.log
+
+# Fichiers temporaires
+*.tmp
+*.swp
+*.swo
+
+# ==========================
+# NLTK
+# ==========================
+nltk_data/
+
+# ==========================
+# Jupyter Notebook
+# ==========================
+.ipynb_checkpoints
+
+# ==========================
+# PyCharm / VSCode
+# ==========================
+.vscode/
+.idea/
+*.iml
+
+# ==========================
+# Système
+# ==========================
+.DS_Store
+Thumbs.db
+
+# ==========================
+# Streamlit
+# ==========================
+.streamlit/
+
+# ==========================
+# Uvicorn / FastAPI
+# ==========================
+*.pid
